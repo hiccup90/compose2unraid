@@ -51,7 +51,7 @@ def translate_to_xml(compose_text):
             
             cfg = ET.SubElement(root, "Config", {
                 "Name": "Host Path", "Target": container_path, "Default": "",
-                "Mode": "rw", "Description": "Container Path: " + container_path,
+                "Mode": "rw", "Description": "",
                 "Type": "Path", "Display": "always", "Required": "false", "Mask": "false"
             })
             cfg.text = host_path
@@ -62,7 +62,7 @@ def translate_to_xml(compose_text):
             h_p, c_p = port.split(':')[:2]
             cfg = ET.SubElement(root, "Config", {
                 "Name": "Host Port", "Target": c_p, "Default": "",
-                "Mode": "tcp", "Description": "Container Port: " + c_p,
+                "Mode": "tcp", "Description": "",
                 "Type": "Port", "Display": "always", "Required": "false", "Mask": "false"
             })
             cfg.text = h_p
@@ -83,7 +83,7 @@ def translate_to_xml(compose_text):
     for item in env_configs:
         cfg = ET.SubElement(root, "Config", {
             "Name": str(item['key']), "Target": str(item['key']), "Default": "",
-            "Mode": "", "Description": f"Variable: {item['key']}",
+            "Mode": "", "Description": "",
             "Type": "Variable", "Display": "always", "Required": "false", "Mask": "false"
         })
         cfg.text = str(item['value'])
