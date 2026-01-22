@@ -2,29 +2,69 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>Unraid XML 批量生成器</title>
+    <title>Unraid XML 助手</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; }
-        textarea { width: 100%; height: 400px; border-radius: 8px; border: 1px solid #ccc; padding: 15px; font-family: 'Courier New', Courier, monospace; }
-        .btn { background: #E2211A; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 10px; }
-        .btn:hover { background: #b11a15; }
-        .note { color: #666; font-size: 0.9em; margin-top: 10px; }
+        body { font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1a1a1a; color: #e0e0e0; padding: 40px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        textarea { width: 100%; height: 500px; background: #2d2d2d; color: #76ff03; border: 1px solid #444; padding: 15px; border-radius: 8px; font-family: monospace; box-sizing: border-box; }
+        .controls { margin-bottom: 20px; }
+        button { background: #E2211A; color: white; border: none; padding: 12px 25px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 10px; }
+        button:disabled { background: #666; }
+        .status { margin-top: 10px; color: #ff9800; }
     </style>
 </head>
 <body>
-    <h1>Docker Compose -> Unraid XML</h1>
-    <p>将你的 <code>docker-compose.yml</code> 内容粘贴在下面。如果有多个 service，点击转换后将下载包含所有 XML 的压缩包。</p>
-    <form method="post">
-        <textarea name="compose_text" placeholder="services:
-  nginx:
-    image: nginx:latest
-    ports:
-      - 8080:80
-..."></textarea>
-        <button type="submit" class="btn">批量转换并下载 ZIP</button>
-    </form>
-    <div class="note">
-        * 相对路径 <code>./</code> 将自动转换为 <code>/mnt/user/appdata/{服务名}/</code>
+    <h1>Unraid XML 生成器</h1>
+    <div class="controls">
+        <button onclick="doConvert()">1. 转换预览</button>
+        <button id="saveBtn" onclick="doSave()" disabled style="background: #007bff;">2. 保存到 Unraid 模板库</button>
+        <span id="statusLabel" class="status"></span>
     </div>
+    <div class="grid">
+        <textarea id="composeInput" placeholder="在此粘贴 Docker Compose..."></textarea>
+        <textarea id="xmlOutput" readonly placeholder="转换后的 XML 将在此显示..."></textarea>
+    </div>
+
+    <script>
+        let currentName = "";
+        async function doConvert() {
+            const text = document.getElementById('composeInput').value;
+            const status = document.getElementById('statusLabel');
+            status.innerText = "转换中...";
+            
+            const res = await fetch('/convert', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({compose_text: text})
+            });
+            const data = await res.json();
+            if(data.success) {
+                document.getElementById('xmlOutput').value = data.xml;
+                currentName = data.name;
+                document.getElementById('saveBtn').disabled = false;
+                status.innerText = "转换成功！";
+            } else {
+                alert("转换失败: " + data.error);
+                status.innerText = "转换出错";
+            }
+        }
+
+        async function doSave() {
+            const xml = document.getElementById('xmlOutput').value;
+            const status = document.getElementById('statusLabel');
+            const res = await fetch('/save', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name: currentName, xml: xml})
+            });
+            const data = await res.json();
+            if(data.success) {
+                status.innerText = "已保存到: " + data.path + " (请刷新 Unraid Docker 页面)";
+                alert("保存成功！现在去 Unraid 页面点击 'Add Container' 即可看到。");
+            } else {
+                alert("保存失败，请检查是否正确映射了 /templates 目录。错误：" + data.error);
+            }
+        }
+    </script>
 </body>
 </html>
