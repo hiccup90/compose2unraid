@@ -7,7 +7,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # 镜像名称会自动变为: ghcr.io/你的用户名/仓库名
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
@@ -15,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write # 必须赋予写入 Packages 的权限
+      packages: write
 
     steps:
       - name: Checkout repository
@@ -26,9 +25,9 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }} # 使用自动生成的 Token
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
+      - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -40,4 +39,5 @@ jobs:
           context: .
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          labels: ${{ id.meta.outputs.labels }}
+          # 修正这里：添加了 steps. 前缀
+          labels: ${{ steps.meta.outputs.labels }}
