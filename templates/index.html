@@ -3,67 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <title>Unraid XML 助手</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
     <style>
-        body { font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1a1a1a; color: #e0e0e0; padding: 40px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        textarea { width: 100%; height: 500px; background: #2d2d2d; color: #76ff03; border: 1px solid #444; padding: 15px; border-radius: 8px; font-family: monospace; box-sizing: border-box; }
-        .controls { margin-bottom: 20px; }
-        button { background: #E2211A; color: white; border: none; padding: 12px 25px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 10px; }
-        button:disabled { background: #666; }
-        .status { margin-top: 10px; color: #ff9800; }
+        :root {
+            --unraid-red: #E2211A;
+            --unraid-dark: #121212;
+            --bg-panel: #1e1e1e;
+            --border-color: #333;
+            --text-main: #e0e0e0;
+        }
+
+        body { 
+            font-family: 'Inter', -apple-system, sans-serif; 
+            background: var(--unraid-dark); 
+            color: var(--text-main); 
+            margin: 0; padding: 20px; 
+        }
+
+        .header { display: flex; align-items: center; border-bottom: 2px solid var(--unraid-red); padding-bottom: 10px; margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 24px; color: var(--unraid-red); }
+
+        .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: calc(100vh - 150px); }
+        
+        .panel { display: flex; flex-direction: column; background: var(--bg-panel); border-radius: 8px; border: 1px solid var(--border-color); overflow: hidden; }
+        .panel-header { padding: 10px 15px; background: #252525; border-bottom: 1px solid var(--border-color); font-weight: bold; font-size: 14px; display: flex; justify-content: space-between; }
+
+        textarea { 
+            flex: 1; border: none; padding: 15px; background: transparent; color: #76ff03; 
+            font-family: 'Fira Code', 'Courier New', monospace; font-size: 13px; resize: none; outline: none;
+        }
+
+        /* 代码高亮区域样式 */
+        .code-container { flex: 1; position: relative; overflow: auto; background: #1d1d1d; }
+        pre { margin: 0 !important; border-radius: 0 !important; height: 100%; font-size: 13px !important; }
+
+        .toolbar { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; }
+        
+        button { 
+            background: var(--unraid-red); color: white; border: none; padding: 10px 20px; 
+            border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s;
+        }
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
+        button:disabled { background: #444; cursor: not-allowed; }
+        .btn-save { background: #007bff; }
+        
+        #statusLabel { font-size: 14px; color: #ff9800; }
+        .clear-btn { background: #444; font-size: 12px; }
     </style>
 </head>
 <body>
-    <h1>Unraid XML 生成器</h1>
-    <div class="controls">
-        <button onclick="doConvert()">1. 转换预览</button>
-        <button id="saveBtn" onclick="doSave()" disabled style="background: #007bff;">2. 保存到 Unraid 模板库</button>
-        <span id="statusLabel" class="status"></span>
+
+    <div class="header">
+        <h1>UNRAID XML ASSISTANT</h1>
     </div>
-    <div class="grid">
-        <textarea id="composeInput" placeholder="在此粘贴 Docker Compose..."></textarea>
-        <textarea id="xmlOutput" readonly placeholder="转换后的 XML 将在此显示..."></textarea>
+
+    <div class="toolbar">
+        <button onclick="doConvert()">⚡ 转换并预览</button>
+        <button id="saveBtn" class="btn-save" onclick="doSave()" disabled>💾 保存到模板库</button>
+        <button class="clear-btn" onclick="clearAll()">清空</button>
+        <span id="statusLabel"></span>
     </div>
+
+    <div class="container">
+        <div class="panel">
+            <div class="panel-header">DOCKER COMPOSE (YAML)</div>
+            <textarea id="composeInput" placeholder="在此粘贴 Docker Compose 内容..."></textarea>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">PREVIEW (XML)</div>
+            <div class="code-container">
+                <pre><code id="xmlDisplay" class="language-xml"></code></pre>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-xml-doc.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
 
     <script>
         let currentName = "";
+        let currentXml = "";
+
         async function doConvert() {
             const text = document.getElementById('composeInput').value;
             const status = document.getElementById('statusLabel');
-            status.innerText = "转换中...";
+            const display = document.getElementById('xmlDisplay');
             
-            const res = await fetch('/convert', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({compose_text: text})
-            });
-            const data = await res.json();
-            if(data.success) {
-                document.getElementById('xmlOutput').value = data.xml;
-                currentName = data.name;
-                document.getElementById('saveBtn').disabled = false;
-                status.innerText = "转换成功！";
-            } else {
-                alert("转换失败: " + data.error);
-                status.innerText = "转换出错";
+            if(!text.trim()) return;
+            status.innerText = "正在转换...";
+            
+            try {
+                const res = await fetch('/convert', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({compose_text: text})
+                });
+                const data = await res.json();
+                
+                if(data.success) {
+                    currentXml = data.xml;
+                    currentName = data.name;
+                    // 更新代码并触发 Prism 高亮
+                    display.textContent = data.xml;
+                    Prism.highlightElement(display);
+                    
+                    document.getElementById('saveBtn').disabled = false;
+                    status.innerText = "转换成功！";
+                } else {
+                    status.innerText = "错误: " + data.error;
+                }
+            } catch (e) {
+                status.innerText = "网络请求失败";
             }
         }
 
         async function doSave() {
-            const xml = document.getElementById('xmlOutput').value;
             const status = document.getElementById('statusLabel');
             const res = await fetch('/save', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({name: currentName, xml: xml})
+                body: JSON.stringify({name: currentName, xml: currentXml})
             });
             const data = await res.json();
             if(data.success) {
-                status.innerText = "已保存到: " + data.path + " (请刷新 Unraid Docker 页面)";
-                alert("保存成功！现在去 Unraid 页面点击 'Add Container' 即可看到。");
+                status.innerText = "✅ 已保存至模板目录！";
+                alert("已保存！请前往 Unraid 'Add Container' 列表查看。");
             } else {
-                alert("保存失败，请检查是否正确映射了 /templates 目录。错误：" + data.error);
+                alert("保存失败: " + data.error);
             }
+        }
+
+        function clearAll() {
+            document.getElementById('composeInput').value = "";
+            document.getElementById('xmlDisplay').textContent = "";
+            document.getElementById('saveBtn').disabled = true;
+            document.getElementById('statusLabel').innerText = "";
         }
     </script>
 </body>
