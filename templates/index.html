@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>Unraid XML 批量生成器</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; }
+        textarea { width: 100%; height: 400px; border-radius: 8px; border: 1px solid #ccc; padding: 15px; font-family: 'Courier New', Courier, monospace; }
+        .btn { background: #E2211A; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        .btn:hover { background: #b11a15; }
+        .note { color: #666; font-size: 0.9em; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Docker Compose -> Unraid XML</h1>
+    <p>将你的 <code>docker-compose.yml</code> 内容粘贴在下面。如果有多个 service，点击转换后将下载包含所有 XML 的压缩包。</p>
+    <form method="post">
+        <textarea name="compose_text" placeholder="services:
+  nginx:
+    image: nginx:latest
+    ports:
+      - 8080:80
+..."></textarea>
+        <button type="submit" class="btn">批量转换并下载 ZIP</button>
+    </form>
+    <div class="note">
+        * 相对路径 <code>./</code> 将自动转换为 <code>/mnt/user/appdata/{服务名}/</code>
+    </div>
+</body>
+</html>
